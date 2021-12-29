@@ -206,7 +206,7 @@ void load_file(char* file_name, netpbm_image* image)
 
     image->file_in = fopen(file_name, "rt");
     if (!image->file_in) {
-        printf("Cannot open file!\n");
+        printf("Failed to load %s\n", file_name);
         return;
     }
 
@@ -306,6 +306,8 @@ void load_file(char* file_name, netpbm_image* image)
     image->curr_selection.p1.y = 0;
     image->curr_selection.p2.x = image->width - 1;
     image->curr_selection.p2.y = image->height - 1;
+
+    printf("Loaded %s\n", file_name);
 }
 
 /**
@@ -359,7 +361,10 @@ int main(void)
         if (strcmp(command, EXIT) == 0)
             break;
         else if (is_load_command(args[0])) {
+            if(args[1] != NULL)
             load_file(args[1], &img);
+            else 
+                printf("Please enter a file name!\n");
         }
         else if (strcmp(command, SELECT) == 0) {
             printf("SELECT!\n");
