@@ -6,7 +6,7 @@
 #define MAX_FILENAME 100
 #define LOAD "LOAD"
 #define SELECT "SELECT"
-#define SELECT_ALL "SELECT ALL" // minor bug with length of string (MAX_WORD == 10)
+#define SELECT_ALL "ALL" // minor bug with length of string (MAX_WORD == 10)
 #define ROTATE "ROTATE"
 #define CROP "CROP"
 #define APPLY "APPLY"
@@ -193,14 +193,14 @@ void free_image(netpbm_image img)
 
 /**
  * @brief Load an image from stdin
- * 
+ *
  * @param file_name File name given by user
  * @param image netpbm struct that stores informations about the file
  */
 void load_file(char* file_name, netpbm_image* image)
-{   
+{
 
-    if(image->file_in != NULL) {
+    if (image->file_in != NULL) {
         free_image(*image);
     }
 
@@ -304,8 +304,8 @@ void load_file(char* file_name, netpbm_image* image)
     // Save current selection as entire image
     image->curr_selection.p1.x = 0;
     image->curr_selection.p1.y = 0;
-    image->curr_selection.p2.x = image->width - 1;
-    image->curr_selection.p2.y = image->height - 1;
+    image->curr_selection.p2.x = image->width;
+    image->curr_selection.p2.y = image->height;
 
     printf("Loaded %s\n", file_name);
 }
@@ -326,7 +326,7 @@ int is_load_command(char* command)
 
 /**
  * @brief Dealocate memory a 2D array of char
- * 
+ *
  * @param array Array to be deallocated
  * @param length number of rows
  */
@@ -338,7 +338,84 @@ void free_char_2D_array(char** array, int length)
     free(array);
 }
 
+/**
+ * @brief Check for select command
+ *
+ * @param command given by the user
+ * @return int true or false
+ */
+int is_select_command(char* command)
+{
+    if (strcmp(command, SELECT) == 0)
+        return 1;
+    else
+        return 0;
+}
 
+/**
+ * @brief Check for select all command
+ * 
+ * @param command given by the user
+ * @param arg second argument
+ * @return int true or false
+ */
+int is_select_all_command(char* command, char* arg)
+{
+    if (is_select_command(command)) {
+        if (strcmp(arg, SELECT_ALL) == 0)
+            return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Restrict current selection to the given index
+ *
+ * @param args array with command arguments
+ * @param image netpbm image
+ */
+void select_command(char** args, netpbm_image* image)
+{
+    int x1 = args[1][0] - '0';
+    int x2 = args[2][0] - '0';
+    int y1 = args[3][0] - '0';
+    int y2 = args[4][0] - '0';
+
+    if (x1 < 0 || x1 > image->width || x2 < 0 || x2 > image->width ||
+        y1 < 0 || y1 > image->height || y2 < 0 || y2 > image->height) {
+        printf("Invalid coordinates!\n");
+        return;
+    }
+    if (!image->file_in) {
+        printf("No image loaded!\n");
+        return;
+    }
+    image->curr_selection.p1.x = x1;
+    image->curr_selection.p1.y = y1;
+    image->curr_selection.p2.x = x2;
+    image->curr_selection.p2.y = y2;
+    printf("Selected %d %d %d %d\n", image->curr_selection.p1.x, image->curr_selection.p2.x, image->curr_selection.p1.y, image->curr_selection.p2.y);
+}
+
+/**
+ * @brief Select all image
+ * 
+ * @param img netpbm image
+ */
+void select_all_command(netpbm_image img) {
+
+    if(!img.file_in) {
+        printf("No image loaded!\n");
+        return;
+    }
+    img.curr_selection.p1.x = 0;
+    img.curr_selection.p1.y = 0;
+    img.curr_selection.p2.x = img.width;
+    img.curr_selection.p2.y = img.height;
+
+    printf("Selected ALL!\n");
+}
 
 int main(void)
 {
@@ -361,16 +438,19 @@ int main(void)
         if (strcmp(command, EXIT) == 0)
             break;
         else if (is_load_command(args[0])) {
-            if(args[1] != NULL)
-            load_file(args[1], &img);
-            else 
+            if (args[1] != NULL)
+                load_file(args[1], &img);
+            else
                 printf("Please enter a file name!\n");
         }
-        else if (strcmp(command, SELECT) == 0) {
-            printf("SELECT!\n");
-        }
-        else if (strcmp(command, SELECT_ALL) == 0) {
-            printf("SELECT ALL!\n");
+        else if (is_select_command(args[0])) {
+            if (command_length == 2 && is_select_all_command(args[0], args[1]))
+                printf("SELECT ALL!\n");
+            else
+                if(command_length != 5)
+                    printf("Invalid number of coordinates!\n");
+                else
+                    select_command(args, &img);
         }
         else if (strcmp(command, ROTATE) == 0) {
             printf("ROTATE!\n");
@@ -391,7 +471,7 @@ int main(void)
 
     free(command);
     free_char_2D_array(args, command_length);
-    
+
     free_image(img);
     return 0;
 }
