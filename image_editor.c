@@ -39,7 +39,7 @@ typedef struct
 typedef struct
 {
     pixel** image;
-} ppm_image;
+} ppm_format;
 
 /**
  * @brief PHM image with an array of Black/White values
@@ -48,7 +48,7 @@ typedef struct
 typedef struct
 {
     int** values;
-} pgm_image;
+} pgm_format;
 
 /**
  * @brief A geomtrical point with x/y coordinates
@@ -85,11 +85,11 @@ typedef struct
     int max_value;
     union
     {
-        ppm_image ppm_img;
-        pgm_image pgm_img;
-    } img;
+        ppm_format ppm_format;
+        pgm_format pgm_img;
+    } image;
     selection curr_selection;
-} netpbm_image;
+} netpbm_format;
 
 /**
  * @brief Split a string in words delimited by space
@@ -176,18 +176,34 @@ void check_comments(FILE* in)
     ungetc(c, in);
 }
 
-void free_image(netpbm_image img)
+void free_ppm_format(ppm_format img, int height)
+{
+    for (int i = 0; i < height; i++)
+        free(img.image[i]);
+    free(img.image);
+}
+
+void free_pgm_format(pgm_format img, int height)
+{
+    for (int i = 0; i < height; i++)
+        free(img.values[i]);
+    free(img.values);
+}
+
+void free_image(netpbm_format img)
 {
     if (img.type == PPM) {
-        for (int i = 0; i < img.height; i++)
-            free(img.img.ppm_img.image[i]);
-        free(img.img.ppm_img.image);
+        free_ppm_format(img.image.ppm_format, img.height);
     }
     else if (img.type == PGM) {
-        for (int i = 0; i < img.height; i++)
-            free(img.img.pgm_img.values[i]);
-        free(img.img.pgm_img.values);
+        free_pgm_format
+        (img.image.pgm_img, img.height);
     }
+}
+
+void free_all(netpbm_format img)
+{
+    free_image(img);
     fclose(img.file_in);
 }
 
@@ -197,115 +213,115 @@ void free_image(netpbm_image img)
  * @param file_name File name given by user
  * @param image netpbm struct that stores informations about the file
  */
-void load_file(char* file_name, netpbm_image* image)
+void load_file(char* file_name, netpbm_format* netpbm_img)
 {
 
-    if (image->file_in != NULL) {
-        free_image(*image);
+    if (netpbm_img->file_in != NULL) {
+        free_all(*netpbm_img);
     }
 
-    image->file_in = fopen(file_name, "rt");
-    if (!image->file_in) {
+    netpbm_img->file_in = fopen(file_name, "rt");
+    if (!netpbm_img->file_in) {
         printf("Failed to load %s\n", file_name);
         return;
     }
 
-    check_comments(image->file_in);
+    check_comments(netpbm_img->file_in);
 
-    fgets(image->magic_number, 3, image->file_in);
-    if (image->magic_number[0] != 'P') {
+    fgets(netpbm_img->magic_number, 3, netpbm_img->file_in);
+    if (netpbm_img->magic_number[0] != 'P') {
         printf("Wrong Image format\n");
         return;
     }
 
-    getc(image->file_in); // \n
-    check_comments(image->file_in);
+    getc(netpbm_img->file_in); // \n
+    check_comments(netpbm_img->file_in);
 
-    fscanf(image->file_in, "%d", &(image->width));
-    fscanf(image->file_in, "%d", &(image->height));
+    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->width));
+    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->height));
 
-    getc(image->file_in);
-    check_comments(image->file_in);
+    getc(netpbm_img->file_in);
+    check_comments(netpbm_img->file_in);
 
-    fscanf(image->file_in, "%d", &(image->max_value));
+    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->max_value));
 
-    if (image->magic_number[1] == '3' || image->magic_number[1] == '6') {
-        image->type = PPM;
+    if (netpbm_img->magic_number[1] == '3' || netpbm_img->magic_number[1] == '6') {
+        netpbm_img->type = PPM;
 
-        image->img.ppm_img.image = (pixel**)malloc(image->height * sizeof(pixel*));
-        if (!image->img.ppm_img.image) {
+        netpbm_img->image.ppm_format.image = (pixel**)malloc(netpbm_img->height * sizeof(pixel*));
+        if (!netpbm_img->image.ppm_format.image) {
             printf("Error allocation!\n");
             return;
         }
-        for (int i = 0; i < image->height; i++) {
-            image->img.ppm_img.image[i] = (pixel*)malloc(image->width * sizeof(pixel));
-            if (!image->img.ppm_img.image[i]) {
+        for (int i = 0; i < netpbm_img->height; i++) {
+            netpbm_img->image.ppm_format.image[i] = (pixel*)malloc(netpbm_img->width * sizeof(pixel));
+            if (!netpbm_img->image.ppm_format.image[i]) {
                 printf("Error allocation!\n");
                 return;
             }
         }
     }
-    else if (image->magic_number[1] == '2' || image->magic_number[1] == '5') {
-        image->type = PGM;
+    else if (netpbm_img->magic_number[1] == '2' || netpbm_img->magic_number[1] == '5') {
+        netpbm_img->type = PGM;
 
-        image->img.pgm_img.values = (int**)malloc(image->height * sizeof(int*));
-        if (!image->img.pgm_img.values) {
+        netpbm_img->image.pgm_img.values = (int**)malloc(netpbm_img->height * sizeof(int*));
+        if (!netpbm_img->image.pgm_img.values) {
             printf("Error allocation!\n");
             return;
         }
-        for (int i = 0; i < image->height; i++) {
-            image->img.pgm_img.values[i] = (int*)malloc(image->width * sizeof(int));
-            if (!image->img.pgm_img.values[i]) {
+        for (int i = 0; i < netpbm_img->height; i++) {
+            netpbm_img->image.pgm_img.values[i] = (int*)malloc(netpbm_img->width * sizeof(int));
+            if (!netpbm_img->image.pgm_img.values[i]) {
                 printf("Error allocation!\n");
                 return;
             }
         }
     }
 
-    getc(image->file_in);
-    check_comments(image->file_in);
+    getc(netpbm_img->file_in);
+    check_comments(netpbm_img->file_in);
 
     // printf("%s\n", image->magic_number);
     // printf("%d\n", image->width);
     // printf("%d\n", image->height);
     // printf("%d\n", image->max_value);
-    if (image->type == PPM) {
-        if (image->magic_number[1] == '3') {
-            for (int i = 0; i < image->height; i++) {
-                for (int j = 0; j < image->width; j++) {
-                    fscanf(image->file_in, "%d", &(image->img.ppm_img.image[i][j].red));
-                    fscanf(image->file_in, "%d", &(image->img.ppm_img.image[i][j].green));
-                    fscanf(image->file_in, "%d", &(image->img.ppm_img.image[i][j].blue));
+    if (netpbm_img->type == PPM) {
+        if (netpbm_img->magic_number[1] == '3') {
+            for (int i = 0; i < netpbm_img->height; i++) {
+                for (int j = 0; j < netpbm_img->width; j++) {
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].red));
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].green));
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].blue));
                 }
             }
         }
         else {
-            for (int i = 0; i < image->height; i++)
-                for (int j = 0; j < image->height; j++) {
-                    fread(&(image->img.ppm_img.image[i][j].red), sizeof(int), 1, image->file_in);
-                    fread(&(image->img.ppm_img.image[i][j].green), sizeof(int), 1, image->file_in);
-                    fread(&(image->img.ppm_img.image[i][j].blue), sizeof(int), 1, image->file_in);
+            for (int i = 0; i < netpbm_img->height; i++)
+                for (int j = 0; j < netpbm_img->height; j++) {
+                    fread(&(netpbm_img->image.ppm_format.image[i][j].red), sizeof(int), 1, netpbm_img->file_in);
+                    fread(&(netpbm_img->image.ppm_format.image[i][j].green), sizeof(int), 1, netpbm_img->file_in);
+                    fread(&(netpbm_img->image.ppm_format.image[i][j].blue), sizeof(int), 1, netpbm_img->file_in);
                 }
         }
     }
-    else if (image->type == PGM) {
-        if (image->magic_number[1] == '2')
-            for (int i = 0; i < image->height; i++)
-                for (int j = 0; j < image->height; j++) {
-                    fscanf(image->file_in, "%d", &(image->img.pgm_img.values[i][j]));
+    else if (netpbm_img->type == PGM) {
+        if (netpbm_img->magic_number[1] == '2')
+            for (int i = 0; i < netpbm_img->height; i++)
+                for (int j = 0; j < netpbm_img->height; j++) {
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.pgm_img.values[i][j]));
                 }
         else
-            for (int i = 0; i < image->height; i++)
-                for (int j = 0; j < image->height; j++) {
-                    fread(&(image->img.pgm_img.values[i][j]), sizeof(int), 1, image->file_in);
+            for (int i = 0; i < netpbm_img->height; i++)
+                for (int j = 0; j < netpbm_img->height; j++) {
+                    fread(&(netpbm_img->image.pgm_img.values[i][j]), sizeof(int), 1, netpbm_img->file_in);
                 }
     }
 
     // Save current selection as entire image
-    image->curr_selection.p1.x = 0;
-    image->curr_selection.p1.y = 0;
-    image->curr_selection.p2.x = image->width;
-    image->curr_selection.p2.y = image->height;
+    netpbm_img->curr_selection.p1.x = 0;
+    netpbm_img->curr_selection.p1.y = 0;
+    netpbm_img->curr_selection.p2.x = netpbm_img->width;
+    netpbm_img->curr_selection.p2.y = netpbm_img->height;
 
     printf("Loaded %s\n", file_name);
 }
@@ -354,7 +370,7 @@ int is_select_command(char* command)
 
 /**
  * @brief Check for select all command
- * 
+ *
  * @param command given by the user
  * @param arg second argument
  * @return int true or false
@@ -375,7 +391,7 @@ int is_select_all_command(char* command, char* arg)
  * @param args array with command arguments
  * @param image netpbm image
  */
-void select_command(char** args, netpbm_image* image)
+void select_command(char** args, netpbm_format* image)
 {
     int x1 = args[1][0] - '0';
     int x2 = args[2][0] - '0';
@@ -399,13 +415,14 @@ void select_command(char** args, netpbm_image* image)
 }
 
 /**
- * @brief Select all image
- * 
+ * @brief Select all image as current selection
+ *
  * @param img netpbm image
  */
-void select_all_command(netpbm_image img) {
+void select_all_command(netpbm_format img)
+{
 
-    if(!img.file_in) {
+    if (!img.file_in) {
         printf("No image loaded!\n");
         return;
     }
@@ -416,6 +433,74 @@ void select_all_command(netpbm_image img) {
 
     printf("Selected ALL!\n");
 }
+
+/**
+ * @brief Rotate a selection of ppm by 90 degrees
+ *
+ * @param img image to rotate
+ * @param rows number of rows
+ * @param cols number of columns
+ */
+void rotate_clockwise_ppm(ppm_format* img, int start_row, int end_row, int start_col, int end_col, int width, int height)
+{
+    ppm_format rotated_img;
+
+    int rows_length = end_row - start_row;
+    int cols_length = end_col - start_col;
+
+    rotated_img.image = (pixel**)malloc(rows_length * sizeof(pixel));
+    if (!rotated_img.image) {
+        printf("Error allocation!\n");
+        return;
+    }
+    for (int i = start_row; i < end_row; i++) {
+        rotated_img.image[i] = (pixel*)malloc(cols_length * sizeof(pixel));
+        if (!rotated_img.image[i]) {
+            printf("Error allocation!\n");
+            return;
+        }
+    }
+
+    // Copy elements from original array to rotated array
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
+            rotated_img.image[i][j] = (*img).image[i][j];
+
+    for (int i = start_row; i < end_row;i++)
+        for (int j = start_col; j < end_col; j++) {
+            rotated_img.image[i][j].red = (*img).image[end_row - 1 - j][i].red;
+            rotated_img.image[i][j].green = (*img).image[end_row - 1 - j][i].green;
+            rotated_img.image[i][j].blue = (*img).image[end_row - 1 - j][i].blue;
+        }
+
+    free_ppm_format(*img, height);
+    (*img).image = rotated_img.image;
+
+    for (int i = start_row; i < end_row; i++) {
+        for (int j = start_col; j < end_col; j++)
+            printf("%d %d %d_", (*img).image[i][j].red, (*img).image[i][j].green, (*img).image[i][j].blue);
+        printf("\n");
+    }
+}
+
+int get_max (int x, int y) {
+    return x > y ? x : y;
+}
+
+int get_min (int x, int y) {
+    return x < y ? x : y;
+}
+
+// void rotate_command(netpbm_format *image, int angle) {
+
+//     int start_row = get_min((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
+//     int end_row = get_max((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
+
+//     int start_col = get_min((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);   
+//     int end_col = get_max((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);   
+
+//     if (end_row - start_row == (*image).height && end_col - start_col == (*image).width)
+// }
 
 int main(void)
 {
@@ -428,7 +513,7 @@ int main(void)
     char** args;
     int command_length = 0;
 
-    netpbm_image img;
+    netpbm_format img;
     img.file_in = NULL;
 
     while (1) {
@@ -447,7 +532,7 @@ int main(void)
             if (command_length == 2 && is_select_all_command(args[0], args[1]))
                 printf("SELECT ALL!\n");
             else
-                if(command_length != 5)
+                if (command_length != 5)
                     printf("Invalid number of coordinates!\n");
                 else
                     select_command(args, &img);
@@ -464,6 +549,9 @@ int main(void)
         else if (strcmp(command, SAVE) == 0) {
             printf("SAVE!\n");
         }
+        else if (strcmp(command, "ROT") == 0) {
+            rotate_clockwise_ppm(&(img.image.ppm_format), 0, img.height, 0, img.width, img.width, img.height);
+        }
         else {
             printf("Unknow command!\n");
         }
@@ -472,7 +560,7 @@ int main(void)
     free(command);
     free_char_2D_array(args, command_length);
 
-    free_image(img);
+    free_all(img);
     return 0;
 }
 
