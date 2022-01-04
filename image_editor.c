@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define MAX_WORD 100
 #define MAX_FILENAME 100
@@ -12,6 +13,11 @@
 #define APPLY "APPLY"
 #define SAVE "SAVE"
 #define EXIT "EXIT"
+
+#define EDGE_FILTER "EDGE"
+#define SHARPEN_FILTER "SHARPEN"
+#define BLUR_FILTER "BLUR"
+#define GAUSSIAN_BLUR_FILTER "GAUSSIAN"
 
 /**
  * @brief Types of image this application can process
@@ -38,17 +44,8 @@ typedef struct
  */
 typedef struct
 {
-    pixel** image;
-} ppm_format;
-
-/**
- * @brief PHM image with an array of Black/White values
- *
- */
-typedef struct
-{
-    int** values;
-} pgm_format;
+    pixel** pixels;
+} image;
 
 /**
  * @brief A geomtrical point with x/y coordinates
@@ -78,16 +75,11 @@ typedef struct
 {
     FILE* file_in;
     image_type type;
-
     char magic_number[3];
     int width;
     int height;
     int max_value;
-    union
-    {
-        ppm_format ppm_format;
-        pgm_format pgm_img;
-    } image;
+    image picture;
     selection curr_selection;
 } netpbm_format;
 
@@ -176,34 +168,16 @@ void check_comments(FILE* in)
     ungetc(c, in);
 }
 
-void free_ppm_format(ppm_format img, int height)
+void free_image(image img, int height)
 {
     for (int i = 0; i < height; i++)
-        free(img.image[i]);
-    free(img.image);
-}
-
-void free_pgm_format(pgm_format img, int height)
-{
-    for (int i = 0; i < height; i++)
-        free(img.values[i]);
-    free(img.values);
-}
-
-void free_image(netpbm_format img)
-{
-    if (img.type == PPM) {
-        free_ppm_format(img.image.ppm_format, img.height);
-    }
-    else if (img.type == PGM) {
-        free_pgm_format
-        (img.image.pgm_img, img.height);
-    }
+        free(img.pixels[i]);
+    free(img.pixels);
 }
 
 void free_all(netpbm_format img)
 {
-    free_image(img);
+    free_image(img.picture, img.height);
     fclose(img.file_in);
 }
 
@@ -247,60 +221,45 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
 
     if (netpbm_img->magic_number[1] == '3' || netpbm_img->magic_number[1] == '6') {
         netpbm_img->type = PPM;
-
-        netpbm_img->image.ppm_format.image = (pixel**)malloc(netpbm_img->height * sizeof(pixel*));
-        if (!netpbm_img->image.ppm_format.image) {
-            printf("Error allocation!\n");
-            return;
-        }
-        for (int i = 0; i < netpbm_img->height; i++) {
-            netpbm_img->image.ppm_format.image[i] = (pixel*)malloc(netpbm_img->width * sizeof(pixel));
-            if (!netpbm_img->image.ppm_format.image[i]) {
-                printf("Error allocation!\n");
-                return;
-            }
-        }
     }
     else if (netpbm_img->magic_number[1] == '2' || netpbm_img->magic_number[1] == '5') {
         netpbm_img->type = PGM;
+    }
 
-        netpbm_img->image.pgm_img.values = (int**)malloc(netpbm_img->height * sizeof(int*));
-        if (!netpbm_img->image.pgm_img.values) {
+    // Alloc
+    netpbm_img->picture.pixels = (pixel**)malloc(netpbm_img->height * sizeof(pixel*));
+    if (!netpbm_img->picture.pixels) {
+        printf("Error allocation!\n");
+        return;
+    }
+    for (int i = 0; i < netpbm_img->height; i++) {
+        netpbm_img->picture.pixels[i] = (pixel*)malloc(netpbm_img->width * sizeof(pixel));
+        if (!netpbm_img->picture.pixels[i]) {
             printf("Error allocation!\n");
             return;
         }
-        for (int i = 0; i < netpbm_img->height; i++) {
-            netpbm_img->image.pgm_img.values[i] = (int*)malloc(netpbm_img->width * sizeof(int));
-            if (!netpbm_img->image.pgm_img.values[i]) {
-                printf("Error allocation!\n");
-                return;
-            }
-        }
     }
+
 
     getc(netpbm_img->file_in);
     check_comments(netpbm_img->file_in);
 
-    // printf("%s\n", image->magic_number);
-    // printf("%d\n", image->width);
-    // printf("%d\n", image->height);
-    // printf("%d\n", image->max_value);
     if (netpbm_img->type == PPM) {
         if (netpbm_img->magic_number[1] == '3') {
             for (int i = 0; i < netpbm_img->height; i++) {
                 for (int j = 0; j < netpbm_img->width; j++) {
-                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].red));
-                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].green));
-                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.ppm_format.image[i][j].blue));
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->picture.pixels[i][j].red));
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->picture.pixels[i][j].green));
+                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->picture.pixels[i][j].blue));
                 }
             }
         }
         else {
             for (int i = 0; i < netpbm_img->height; i++)
                 for (int j = 0; j < netpbm_img->height; j++) {
-                    fread(&(netpbm_img->image.ppm_format.image[i][j].red), sizeof(int), 1, netpbm_img->file_in);
-                    fread(&(netpbm_img->image.ppm_format.image[i][j].green), sizeof(int), 1, netpbm_img->file_in);
-                    fread(&(netpbm_img->image.ppm_format.image[i][j].blue), sizeof(int), 1, netpbm_img->file_in);
+                    fread(&(netpbm_img->picture.pixels[i][j].red), sizeof(int), 1, netpbm_img->file_in);
+                    fread(&(netpbm_img->picture.pixels[i][j].green), sizeof(int), 1, netpbm_img->file_in);
+                    fread(&(netpbm_img->picture.pixels[i][j].blue), sizeof(int), 1, netpbm_img->file_in);
                 }
         }
     }
@@ -308,12 +267,20 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
         if (netpbm_img->magic_number[1] == '2')
             for (int i = 0; i < netpbm_img->height; i++)
                 for (int j = 0; j < netpbm_img->height; j++) {
-                    fscanf(netpbm_img->file_in, "%d", &(netpbm_img->image.pgm_img.values[i][j]));
+                    int value;
+                    fscanf(netpbm_img->file_in, "%d", &value);
+                    netpbm_img->picture.pixels[i][j].red = value;
+                    netpbm_img->picture.pixels[i][j].green = value;
+                    netpbm_img->picture.pixels[i][j].blue = value;
                 }
         else
             for (int i = 0; i < netpbm_img->height; i++)
                 for (int j = 0; j < netpbm_img->height; j++) {
-                    fread(&(netpbm_img->image.pgm_img.values[i][j]), sizeof(int), 1, netpbm_img->file_in);
+                    int value;
+                    fread(&value, sizeof(int), 1, netpbm_img->file_in);
+                    netpbm_img->picture.pixels[i][j].red = value;
+                    netpbm_img->picture.pixels[i][j].green = value;
+                    netpbm_img->picture.pixels[i][j].blue = value;
                 }
     }
 
@@ -394,8 +361,8 @@ int is_select_all_command(char* command, char* arg)
 void select_command(char** args, netpbm_format* image)
 {
     int x1 = args[1][0] - '0';
-    int x2 = args[2][0] - '0';
-    int y1 = args[3][0] - '0';
+    int y1 = args[2][0] - '0';
+    int x2 = args[3][0] - '0';
     int y2 = args[4][0] - '0';
 
     if (x1 < 0 || x1 > image->width || x2 < 0 || x2 > image->width ||
@@ -411,7 +378,7 @@ void select_command(char** args, netpbm_format* image)
     image->curr_selection.p1.y = y1;
     image->curr_selection.p2.x = x2;
     image->curr_selection.p2.y = y2;
-    printf("Selected %d %d %d %d\n", image->curr_selection.p1.x, image->curr_selection.p2.x, image->curr_selection.p1.y, image->curr_selection.p2.y);
+    printf("Selected %d %d %d %d\n", image->curr_selection.p1.x, image->curr_selection.p1.y, image->curr_selection.p2.x, image->curr_selection.p2.y);
 }
 
 /**
@@ -434,77 +401,430 @@ void select_all_command(netpbm_format img)
     printf("Selected ALL!\n");
 }
 
-/**
- * @brief Rotate a selection of ppm by 90 degrees
- *
- * @param img image to rotate
- * @param rows number of rows
- * @param cols number of columns
- */
-void rotate_clockwise_ppm(ppm_format* img, int start_row, int end_row, int start_col, int end_col, int width, int height)
+int get_max(int x, int y)
 {
-    ppm_format rotated_img;
+    return x > y ? x : y;
+}
 
-    int rows_length = end_row - start_row;
-    int cols_length = end_col - start_col;
+int get_min(int x, int y)
+{
+    return x < y ? x : y;
+}
 
-    rotated_img.image = (pixel**)malloc(rows_length * sizeof(pixel));
-    if (!rotated_img.image) {
+
+/**
+ * Transpose matrix in place
+ * @param mat - 2D array to be tranposed
+ * @param size - number for rows/columns
+ */
+void transpose_square_matrix(image img, int start_row, int end_row, int end_col)
+{
+    for (int i = start_row; i < end_row; ++i) {
+        for (int j = i; j < end_col; ++j) {
+            int red_tmp = img.pixels[i][j].red;
+            int green_tmp = img.pixels[i][j].green;
+            int blue_tmp = img.pixels[i][j].blue;
+
+            img.pixels[i][j].red = img.pixels[j][i].red;
+            img.pixels[i][j].green = img.pixels[j][i].green;
+            img.pixels[i][j].blue = img.pixels[j][i].blue;
+
+            img.pixels[j][i].red = red_tmp;
+            img.pixels[j][i].green = green_tmp;
+            img.pixels[j][i].blue = blue_tmp;
+        }
+    }
+}
+
+void swap(int* x, int* y)
+{
+    int temp = *x;
+    *x = *y;
+    *y = temp;
+}
+
+void transpose_image(image* img, int* height, int* width)
+{
+
+    if (*height != *width) {
+
+        int max = get_max(*height, *width);
+        //img.pixels = (pixel **)realloc(img.pixels, max * sizeof(pixel *));
+        if (*width > *height) {
+
+            (*img).pixels = (pixel**)realloc((*img).pixels, *width * sizeof(pixel*));
+            for (int i = *height; i < *width; i++) {
+                (*img).pixels[i] = (pixel*)calloc(max, sizeof(pixel));
+            }
+
+            transpose_square_matrix((*img), 0, max, max);
+
+            for (int i = 0; i < max; i++)
+                (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
+        }
+        else {
+            for (int i = 0; i < *height; i++)
+                (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
+            transpose_square_matrix((*img), 0, max, max);
+
+            for (int i = *width; i < *height; i++)
+                free((*img).pixels[i]);
+
+            (*img).pixels = realloc((*img).pixels, *width * sizeof(pixel));
+        }
+
+        swap(height, width);
+        printf("W%d H%d\n", *width, *height);
+    }
+    else
+        transpose_square_matrix((*img), 0, *height, *width);
+}
+
+void reverse_rows(image img, int start_row, int end_row, int start_col, int end_col)
+{
+    for (int i = start_row; i < end_row; i++) {
+        int low = start_col;
+        int high = end_col - 1;
+        while (low < high) {
+            int red_temp = img.pixels[i][low].red;
+            int green_temp = img.pixels[i][low].green;
+            int blue_temp = img.pixels[i][low].blue;
+
+            img.pixels[i][low].red = img.pixels[i][high].red;
+            img.pixels[i][low].green = img.pixels[i][high].green;
+            img.pixels[i][low].blue = img.pixels[i][high].blue;
+
+            img.pixels[i][high].red = red_temp;
+            img.pixels[i][high].green = green_temp;
+            img.pixels[i][high].blue = blue_temp;
+
+            low++;
+            high--;
+        }
+    }
+}
+void reverse_cols(image img, int start_row, int end_row, int start_col, int end_col)
+{
+    for (int i = start_col; i < end_col; i++) {
+        int low = start_row;
+        int high = end_row - 1;
+        while (low < high) {
+            int red_temp = img.pixels[low][i].red;
+            int green_temp = img.pixels[low][i].green;
+            int blue_temp = img.pixels[low][i].blue;
+
+            img.pixels[low][i].red = img.pixels[high][i].red;
+            img.pixels[low][i].green = img.pixels[high][i].green;
+            img.pixels[low][i].blue = img.pixels[high][i].blue;
+
+            img.pixels[high][i].red = red_temp;
+            img.pixels[high][i].green = green_temp;
+            img.pixels[high][i].blue = blue_temp;
+
+            low++;
+            high--;
+        }
+    }
+}
+void rotate_image_clockwise(netpbm_format* image, int angle)
+{
+    for (int k = 0; k < (angle / 90); k++) {
+        //transpose
+        transpose_image((&(*image).picture), &(*image).height, &(*image).width);
+        (*image).curr_selection.p2.x = (*image).width;
+        (*image).curr_selection.p2.y = (*image).height;
+        // reverse
+        reverse_rows((*image).picture, 0, (*image).height, 0, (*image).width);
+    }
+}
+
+void rotate_image_counter_clockwise(netpbm_format* image, int angle)
+{
+    for (int k = 0; k < (angle / 90); k++) {
+        //transpose
+        transpose_image((&(*image).picture), &(*image).height, &(*image).width);
+        (*image).curr_selection.p2.x = (*image).width;
+        (*image).curr_selection.p2.y = (*image).height;
+        // reverse
+        reverse_cols(image->picture, 0, image->height, 0, image->width);
+    }
+}
+void rotate_selection_clockwise(netpbm_format* image, int start_row, int start_col, int end_row, int end_col, int angle)
+{
+    for (int k = 0; k < (angle / 90); k++) {
+        transpose_square_matrix(image->picture, start_row, end_row, end_col);
+        reverse_rows(image->picture, start_row, end_row, start_col, end_col);
+    }
+}
+
+void rotate_selection_counter_clockwise(netpbm_format* image, int start_row, int start_col, int end_row, int end_col, int angle)
+{
+    for (int k = 0; k < (angle / 90); k++) {
+        transpose_square_matrix(image->picture, start_row, end_row, end_col);
+        reverse_cols(image->picture, start_row, end_row, start_col, end_col);
+    }
+}
+
+/**
+ * @brief Convert a string number to an int
+ *
+ * @param str number
+ * @return int number converted
+ */
+int string_to_int(char* str)
+{
+    int res = 0;
+    int i = 0;
+    while (str[i] != '\0') {
+        res = res * 10 + (str[i] - '0');
+        i++;
+    }
+    return res;
+}
+
+void rotate_command(netpbm_format* image, char* angle)
+{
+
+    if (image->file_in == NULL) {
+        printf("No image loaded\n");
+        return;
+    }
+
+    char sign = angle[0];
+    int angle_converted = string_to_int(angle + 1);
+
+    if ((angle_converted % 90 != 0 || angle_converted / 90 > 4) || (sign != '-' && sign != '+'))
+        printf("Unsupported rotation angle\n");
+
+    int start_row = get_min((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);
+    int end_row = get_max((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);
+
+    int start_col = get_min((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
+    int end_col = get_max((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
+
+    if (end_row - start_row == (*image).height && end_col - start_col == (*image).width) {
+        // rotate all image
+        if (sign == '+') {
+            rotate_image_clockwise(image, angle_converted);
+        }
+        if (sign == '-') {
+            rotate_image_counter_clockwise(image, angle_converted);
+        }
+    }
+    else if (end_row - start_row == end_col - start_col) {
+        // rotate selection
+        if (sign == '+') {
+            rotate_selection_clockwise(image, start_row, start_col, end_row, end_col, angle_converted);
+        }
+        else if (sign == '-') {
+            rotate_selection_counter_clockwise(image, start_row, start_col, end_row, end_col, angle_converted);
+        }
+    }
+    else {
+        printf("The selection must be square\n");
+        return;
+    }
+
+    printf("Rotated %c%d\n", sign, angle_converted);
+
+}
+
+int is_rotate_command(char** args, int length)
+{
+    if (strcmp(args[0], ROTATE) != 0)
+        return 0;
+    if (length == 2 && args[1] != NULL)
+        return 1;
+    else {
+        printf("Unsupported rotation angle!\n");
+        return 0;
+    }
+}
+
+void crop_command(netpbm_format *img) {
+
+    if(img->file_in == NULL) {
         printf("Error allocation!\n");
         return;
     }
-    for (int i = start_row; i < end_row; i++) {
-        rotated_img.image[i] = (pixel*)malloc(cols_length * sizeof(pixel));
-        if (!rotated_img.image[i]) {
+
+    image selected_img;
+    int height_start = get_min(img->curr_selection.p1.y, img->curr_selection.p2.y);
+    int height_end = get_max(img->curr_selection.p1.y, img->curr_selection.p2.y);
+    int width_start = get_min(img->curr_selection.p1.x, img->curr_selection.p2.x);
+    int width_end = get_max(img->curr_selection.p1.x, img->curr_selection.p2.x);
+
+    int selection_height = height_end - height_start;
+    int selection_width = width_end - width_start;
+
+    selected_img.pixels = (pixel**) malloc(selection_height * sizeof(pixel *));
+    if(!selected_img.pixels) {
+        printf("Error allocation!\n");
+        return;
+    }
+    for(int i = 0 ; i < selection_height; i++ ) {
+        selected_img.pixels[i] = (pixel *)calloc(selection_width, sizeof(pixel));
+        if(!selected_img.pixels[i]) {
             printf("Error allocation!\n");
             return;
         }
     }
 
-    // Copy elements from original array to rotated array
-    for (int i = 0; i < height; i++)
-        for (int j = 0; j < width; j++)
-            rotated_img.image[i][j] = (*img).image[i][j];
-
-    for (int i = start_row; i < end_row;i++)
-        for (int j = start_col; j < end_col; j++) {
-            rotated_img.image[i][j].red = (*img).image[end_row - 1 - j][i].red;
-            rotated_img.image[i][j].green = (*img).image[end_row - 1 - j][i].green;
-            rotated_img.image[i][j].blue = (*img).image[end_row - 1 - j][i].blue;
+    for(int i = 0; i < selection_height; i++)
+        for(int j = 0; j < selection_width; j++) {
+            selected_img.pixels[i][j].red = img->picture.pixels[i + height_start][j + width_start].red;
+            selected_img.pixels[i][j].green = img->picture.pixels[i + height_start][j + width_start].green;
+            selected_img.pixels[i][j].blue = img->picture.pixels[i + height_start][j + width_start].blue;
         }
 
-    free_ppm_format(*img, height);
-    (*img).image = rotated_img.image;
+    free_image(img->picture, img->height);
 
-    for (int i = start_row; i < end_row; i++) {
-        for (int j = start_col; j < end_col; j++)
-            printf("%d %d %d_", (*img).image[i][j].red, (*img).image[i][j].green, (*img).image[i][j].blue);
+    img->width = selection_width;
+    img->height = selection_height;
+
+    img->curr_selection.p1.x = 0; 
+    img->curr_selection.p1.y = 0;
+    img->curr_selection.p2.x = selection_width;
+    img->curr_selection.p2.y = selection_height; 
+
+    img->picture = selected_img;
+
+    printf("Image cropped\n");
+}
+
+void print_image(netpbm_format img) {
+    for(int i = 0; i < img.height; i++) {
+        for(int j = 0; j < img.width; j++) {
+            printf("%d %d %d       ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
+        }
         printf("\n");
     }
 }
 
-int get_max (int x, int y) {
-    return x > y ? x : y;
+void clamp(double *x, int min, int max) {
+    if(*x > max)
+        *x = max;
+    else if(*x < min)
+        *x = min;
 }
 
-int get_min (int x, int y) {
-    return x < y ? x : y;
+void apply_filter(netpbm_format *img, double kernel[3][3], double fraction) {
+    int delimiter = 3;
+    
+    int start_row = get_min(img->curr_selection.p1.y, img->curr_selection.p2.y);
+    int end_row = get_max(img->curr_selection.p1.y, img->curr_selection.p2.y);
+    int start_col = get_min(img->curr_selection.p1.x, img->curr_selection.p2.x);
+    int end_col = get_max(img->curr_selection.p1.x, img->curr_selection.p2.x);
+
+    for(int i = start_row; i < end_row; i++) {
+        if(i == 0 || i == img->height - 1)
+            continue;
+        for(int j = start_col; j < end_col; j++) {
+            if(j == 0 || j == img->width - 1)
+                continue;
+
+            double new_red = 0;
+            double new_green = 0;
+            double new_blue = 0;
+
+            for(int kernel_row = 0; kernel_row < delimiter; kernel_row++) 
+                for(int kernel_col = 0; kernel_col < delimiter; kernel_col++) {
+                    new_red += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].red) / fraction;
+                    new_green += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].green) / fraction;
+                    new_blue += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].blue) / fraction;
+                }
+            // new_red /= fraction;
+            // new_blue /= fraction;
+            // new_red /= fraction;
+
+            clamp(&new_red, 0, 255);
+            clamp(&new_blue, 0, 255);
+            clamp(&new_green, 0, 255);
+            img->picture.pixels[i][j].red = ceil(new_red);
+            img->picture.pixels[i][j].green = ceil(new_green);
+            img->picture.pixels[i][j].blue = ceil(new_blue);
+        }
+    }
+
 }
 
-// void rotate_command(netpbm_format *image, int angle) {
+void apply_command(netpbm_format *img, char *filter) {
 
-//     int start_row = get_min((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
-//     int end_row = get_max((*image).curr_selection.p1.x, (*image).curr_selection.p2.x);
+    if(img->file_in == NULL) {
+        printf("No image loaded\n");
+        return;
+    }
 
-//     int start_col = get_min((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);   
-//     int end_col = get_max((*image).curr_selection.p1.y, (*image).curr_selection.p2.y);   
+    if(img->type == PGM) {
+        printf("Easy, Charlie Chapin\n");
+        return;
+    }
+    if(strcmp(filter, EDGE_FILTER) == 0) {
+        double edge_kernel[3][3] = {
+            {-1.0, -1.0, -1.0},
+            {-1.0, 8.0, -1.0},
+            {-1.0, -1.0, -1.0}
+        };
+        apply_filter(img, edge_kernel, 1);
+    } 
+    else if(strcmp(filter, SHARPEN_FILTER) == 0) {
+        double sharpen_kernel[3][3] = {
+            {0.0, -1.0, 0.0},
+            {-1.0, 5.0, -1.0},
+            {0.0, -1.0, 0.0}
+        };
+        apply_filter(img, sharpen_kernel, 1);
+    }
+    else if(strcmp(filter, BLUR_FILTER) == 0) {
+        double blur_kernel[3][3] = {
+            {1.0, 1.0, 1.0},
+            {1.0, 1.0, 1.0},
+            {1.0, 1.0, 1.0}
+        };
+        apply_filter(img, blur_kernel, 9.0);
+    }
+    else if(strcmp(filter, GAUSSIAN_BLUR_FILTER) == 0) {
+        double gaussain_blur_kernel[3][3] = {
+            {0.0625, 0.125, 0.0625},
+            {0.125, 0.25 , 0.125},
+            {0.0625, 0.125, 0.0625}
+        };
+        apply_filter(img, gaussain_blur_kernel, 1);
+    }
+    else {
+        printf("APPLY paramter invalid\n");
+        return;
+    }
 
-//     if (end_row - start_row == (*image).height && end_col - start_col == (*image).width)
-// }
+    printf("APPLY %s done\n", filter);
+}
 
+void save_command(netpbm_format img, char *file_name, int ascii) {
+    FILE *fin;
+    fin = fopen(file_name, "wt");
+    if(!fin) {
+        printf("Error opening file\n");
+        return;
+    }
+
+    fprintf(fin, "%s\n", img.magic_number);
+    fprintf(fin, "%d %d\n", img.width, img.height);
+    fprintf(fin, "%d\n", img.max_value);
+
+    if(ascii) {
+        for(int i = 0; i < img.height; i++) {
+            for(int j = 0; j < img.width; j++) {
+                fprintf(fin, "%d %d %d ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
+            }
+            fprintf(fin, "\n");
+        }
+    }
+
+    fclose(fin);
+    printf("Saved %s\n", file_name);
+}
 int main(void)
 {
-
     char* command = (char*)malloc((MAX_WORD + 1) * sizeof(char));
     if (!command) {
         printf("Error!\n");
@@ -537,20 +857,20 @@ int main(void)
                 else
                     select_command(args, &img);
         }
-        else if (strcmp(command, ROTATE) == 0) {
-            printf("ROTATE!\n");
+        else if (is_rotate_command(args, command_length)) {
+            rotate_command(&img, args[1]);
         }
         else if (strcmp(command, CROP) == 0) {
-            printf("CROP!\n");
+            crop_command(&img);
         }
-        else if (strcmp(command, APPLY) == 0) {
-            printf("APPLY!\n");
+        else if (strcmp(args[0], APPLY) == 0) {
+            apply_command(&img, args[1]);
         }
-        else if (strcmp(command, SAVE) == 0) {
-            printf("SAVE!\n");
+        else if (strcmp(args[0], SAVE) == 0) {
+            save_command(img, args[1], 1);
         }
-        else if (strcmp(command, "ROT") == 0) {
-            rotate_clockwise_ppm(&(img.image.ppm_format), 0, img.height, 0, img.width, img.width, img.height);
+        else if (strcmp(command, "PRINT") == 0) {
+            print_image(img);
         }
         else {
             printf("Unknow command!\n");
