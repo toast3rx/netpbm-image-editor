@@ -177,8 +177,10 @@ void free_image(image img, int height)
 
 void free_all(netpbm_format img)
 {
-    free_image(img.picture, img.height);
-    fclose(img.file_in);
+    if (img.file_in) {
+        free_image(img.picture, img.height);
+        fclose(img.file_in);
+    }
 }
 
 /**
@@ -194,7 +196,7 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
         free_all(*netpbm_img);
     }
 
-    netpbm_img->file_in = fopen(file_name, "rt");
+    netpbm_img->file_in = fopen(file_name, "r");
     if (!netpbm_img->file_in) {
         printf("Failed to load %s\n", file_name);
         return;
@@ -203,6 +205,7 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
     check_comments(netpbm_img->file_in);
 
     fgets(netpbm_img->magic_number, 3, netpbm_img->file_in);
+    netpbm_img->magic_number[2] = '\0'; // ?????
     if (netpbm_img->magic_number[0] != 'P') {
         printf("Wrong Image format\n");
         return;
@@ -256,7 +259,7 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
         }
         else {
             for (int i = 0; i < netpbm_img->height; i++)
-                for (int j = 0; j < netpbm_img->height; j++) {
+                for (int j = 0; j < netpbm_img->width; j++) {
                     fread(&(netpbm_img->picture.pixels[i][j].red), sizeof(int), 1, netpbm_img->file_in);
                     fread(&(netpbm_img->picture.pixels[i][j].green), sizeof(int), 1, netpbm_img->file_in);
                     fread(&(netpbm_img->picture.pixels[i][j].blue), sizeof(int), 1, netpbm_img->file_in);
@@ -266,7 +269,7 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
     else if (netpbm_img->type == PGM) {
         if (netpbm_img->magic_number[1] == '2')
             for (int i = 0; i < netpbm_img->height; i++)
-                for (int j = 0; j < netpbm_img->height; j++) {
+                for (int j = 0; j < netpbm_img->width; j++) {
                     int value;
                     fscanf(netpbm_img->file_in, "%d", &value);
                     netpbm_img->picture.pixels[i][j].red = value;
@@ -275,7 +278,7 @@ void load_file(char* file_name, netpbm_format* netpbm_img)
                 }
         else
             for (int i = 0; i < netpbm_img->height; i++)
-                for (int j = 0; j < netpbm_img->height; j++) {
+                for (int j = 0; j < netpbm_img->width; j++) {
                     int value;
                     fread(&value, sizeof(int), 1, netpbm_img->file_in);
                     netpbm_img->picture.pixels[i][j].red = value;
@@ -353,6 +356,23 @@ int is_select_all_command(char* command, char* arg)
 }
 
 /**
+ * @brief Convert a string number to an int
+ *
+ * @param str number
+ * @return int number converted
+ */
+int string_to_int(char* str)
+{
+    int res = 0;
+    int i = 0;
+    while (str[i] != '\0') {
+        res = res * 10 + (str[i] - '0');
+        i++;
+    }
+    return res;
+}
+
+/**
  * @brief Restrict current selection to the given index
  *
  * @param args array with command arguments
@@ -360,10 +380,15 @@ int is_select_all_command(char* command, char* arg)
  */
 void select_command(char** args, netpbm_format* image)
 {
-    int x1 = args[1][0] - '0';
-    int y1 = args[2][0] - '0';
-    int x2 = args[3][0] - '0';
-    int y2 = args[4][0] - '0';
+    // int x1 = args[1][0] - '0';
+    // int y1 = args[2][0] - '0';
+    // int x2 = args[3][0] - '0';
+    // int y2 = args[4][0] - '0';
+    int x1 = string_to_int(args[1]);
+    int y1 = string_to_int(args[2]);
+    int x2 = string_to_int(args[3]);
+    int y2 = string_to_int(args[4]);
+
 
     if (x1 < 0 || x1 > image->width || x2 < 0 || x2 > image->width ||
         y1 < 0 || y1 > image->height || y2 < 0 || y2 > image->height) {
@@ -565,23 +590,6 @@ void rotate_selection_counter_clockwise(netpbm_format* image, int start_row, int
     }
 }
 
-/**
- * @brief Convert a string number to an int
- *
- * @param str number
- * @return int number converted
- */
-int string_to_int(char* str)
-{
-    int res = 0;
-    int i = 0;
-    while (str[i] != '\0') {
-        res = res * 10 + (str[i] - '0');
-        i++;
-    }
-    return res;
-}
-
 void rotate_command(netpbm_format* image, char* angle)
 {
 
@@ -641,9 +649,10 @@ int is_rotate_command(char** args, int length)
     }
 }
 
-void crop_command(netpbm_format *img) {
+void crop_command(netpbm_format* img)
+{
 
-    if(img->file_in == NULL) {
+    if (img->file_in == NULL) {
         printf("Error allocation!\n");
         return;
     }
@@ -657,21 +666,21 @@ void crop_command(netpbm_format *img) {
     int selection_height = height_end - height_start;
     int selection_width = width_end - width_start;
 
-    selected_img.pixels = (pixel**) malloc(selection_height * sizeof(pixel *));
-    if(!selected_img.pixels) {
+    selected_img.pixels = (pixel**)malloc(selection_height * sizeof(pixel*));
+    if (!selected_img.pixels) {
         printf("Error allocation!\n");
         return;
     }
-    for(int i = 0 ; i < selection_height; i++ ) {
-        selected_img.pixels[i] = (pixel *)calloc(selection_width, sizeof(pixel));
-        if(!selected_img.pixels[i]) {
+    for (int i = 0; i < selection_height; i++) {
+        selected_img.pixels[i] = (pixel*)calloc(selection_width, sizeof(pixel));
+        if (!selected_img.pixels[i]) {
             printf("Error allocation!\n");
             return;
         }
     }
 
-    for(int i = 0; i < selection_height; i++)
-        for(int j = 0; j < selection_width; j++) {
+    for (int i = 0; i < selection_height; i++)
+        for (int j = 0; j < selection_width; j++) {
             selected_img.pixels[i][j].red = img->picture.pixels[i + height_start][j + width_start].red;
             selected_img.pixels[i][j].green = img->picture.pixels[i + height_start][j + width_start].green;
             selected_img.pixels[i][j].blue = img->picture.pixels[i + height_start][j + width_start].blue;
@@ -682,56 +691,72 @@ void crop_command(netpbm_format *img) {
     img->width = selection_width;
     img->height = selection_height;
 
-    img->curr_selection.p1.x = 0; 
+    img->curr_selection.p1.x = 0;
     img->curr_selection.p1.y = 0;
     img->curr_selection.p2.x = selection_width;
-    img->curr_selection.p2.y = selection_height; 
+    img->curr_selection.p2.y = selection_height;
 
     img->picture = selected_img;
 
     printf("Image cropped\n");
 }
 
-void print_image(netpbm_format img) {
-    for(int i = 0; i < img.height; i++) {
-        for(int j = 0; j < img.width; j++) {
+void print_image(netpbm_format img)
+{
+    printf("%s\n%d %d\n%d\n", img.magic_number, img.width, img.height, img.max_value);
+    for (int i = 0; i < img.height; i++) {
+        for (int j = 0; j < img.width; j++) {
             printf("%d %d %d       ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
         }
         printf("\n");
     }
 }
 
-void clamp(double *x, int min, int max) {
-    if(*x > max)
+void clamp(double* x, int min, int max)
+{
+    if (*x > max)
         *x = max;
-    else if(*x < min)
+    else if (*x < min)
         *x = min;
 }
 
-void apply_filter(netpbm_format *img, double kernel[3][3], double fraction) {
+void apply_filter(netpbm_format* img, double kernel[3][3], double fraction)
+{
     int delimiter = 3;
-    
+
     int start_row = get_min(img->curr_selection.p1.y, img->curr_selection.p2.y);
     int end_row = get_max(img->curr_selection.p1.y, img->curr_selection.p2.y);
     int start_col = get_min(img->curr_selection.p1.x, img->curr_selection.p2.x);
     int end_col = get_max(img->curr_selection.p1.x, img->curr_selection.p2.x);
+    // copy image
+    image temp;
+    temp.pixels = (pixel**)malloc(img->height * sizeof(pixel *));
+    for(int i = 0; i < img->height; i++) 
+        temp.pixels[i] = (pixel *)malloc(img->width * sizeof(pixel));
 
-    for(int i = start_row; i < end_row; i++) {
-        if(i == 0 || i == img->height - 1)
+    for(int i = 0; i < img->height; i++)
+        for(int j = 0; j < img->width; j++) {
+            temp.pixels[i][j].red = img->picture.pixels[i][j].red;
+            temp.pixels[i][j].green = img->picture.pixels[i][j].green;
+            temp.pixels[i][j].blue = img->picture.pixels[i][j].blue;
+        }
+    
+    for (int i = start_row; i < end_row; i++) {
+        if (i == 0 || i == img->height - 1)
             continue;
-        for(int j = start_col; j < end_col; j++) {
-            if(j == 0 || j == img->width - 1)
+        for (int j = start_col; j < end_col; j++) {
+            if (j == 0 || j == img->width - 1)
                 continue;
 
             double new_red = 0;
             double new_green = 0;
             double new_blue = 0;
 
-            for(int kernel_row = 0; kernel_row < delimiter; kernel_row++) 
-                for(int kernel_col = 0; kernel_col < delimiter; kernel_col++) {
-                    new_red += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].red) / fraction;
-                    new_green += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].green) / fraction;
-                    new_blue += (kernel[kernel_row][kernel_col] * img->picture.pixels[i - 1 + kernel_row][j - 1 + kernel_col].blue) / fraction;
+            for (int kernel_row = 0; kernel_row < delimiter; kernel_row++)
+                for (int kernel_col = 0; kernel_col < delimiter; kernel_col++) {
+                    new_red += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].red) / fraction;
+                    new_green += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].green) / fraction;
+                    new_blue += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].blue) / fraction;
                 }
             // new_red /= fraction;
             // new_blue /= fraction;
@@ -746,28 +771,31 @@ void apply_filter(netpbm_format *img, double kernel[3][3], double fraction) {
         }
     }
 
+    free_image(temp, img->height);
+
 }
 
-void apply_command(netpbm_format *img, char *filter) {
+void apply_command(netpbm_format* img, char* filter)
+{
 
-    if(img->file_in == NULL) {
+    if (img->file_in == NULL) {
         printf("No image loaded\n");
         return;
     }
 
-    if(img->type == PGM) {
+    if (img->type == PGM) {
         printf("Easy, Charlie Chapin\n");
         return;
     }
-    if(strcmp(filter, EDGE_FILTER) == 0) {
+    if (strcmp(filter, EDGE_FILTER) == 0) {
         double edge_kernel[3][3] = {
             {-1.0, -1.0, -1.0},
             {-1.0, 8.0, -1.0},
             {-1.0, -1.0, -1.0}
         };
         apply_filter(img, edge_kernel, 1);
-    } 
-    else if(strcmp(filter, SHARPEN_FILTER) == 0) {
+    }
+    else if (strcmp(filter, SHARPEN_FILTER) == 0) {
         double sharpen_kernel[3][3] = {
             {0.0, -1.0, 0.0},
             {-1.0, 5.0, -1.0},
@@ -775,7 +803,7 @@ void apply_command(netpbm_format *img, char *filter) {
         };
         apply_filter(img, sharpen_kernel, 1);
     }
-    else if(strcmp(filter, BLUR_FILTER) == 0) {
+    else if (strcmp(filter, BLUR_FILTER) == 0) {
         double blur_kernel[3][3] = {
             {1.0, 1.0, 1.0},
             {1.0, 1.0, 1.0},
@@ -783,7 +811,7 @@ void apply_command(netpbm_format *img, char *filter) {
         };
         apply_filter(img, blur_kernel, 9.0);
     }
-    else if(strcmp(filter, GAUSSIAN_BLUR_FILTER) == 0) {
+    else if (strcmp(filter, GAUSSIAN_BLUR_FILTER) == 0) {
         double gaussain_blur_kernel[3][3] = {
             {0.0625, 0.125, 0.0625},
             {0.125, 0.25 , 0.125},
@@ -799,24 +827,62 @@ void apply_command(netpbm_format *img, char *filter) {
     printf("APPLY %s done\n", filter);
 }
 
-void save_command(netpbm_format img, char *file_name, int ascii) {
-    FILE *fin;
+void save_command(netpbm_format img, char* file_name, char *is_ascii)
+{   
+    ///MAGIC NUMBER CHANGE
+    int ascii = 0;
+    if(strcmp(is_ascii, "ascii") == 0) 
+        ascii = 1;
+
+    FILE* fin;
     fin = fopen(file_name, "wt");
-    if(!fin) {
+    if (!fin) {
         printf("Error opening file\n");
         return;
     }
 
-    fprintf(fin, "%s\n", img.magic_number);
+    char ppm_no[2] = {'6', '3'};
+    char pgm_no[2] = {'5', '2'};
+    char magic_number;
+    if(img.type == PPM)
+        magic_number = ppm_no[ascii];
+    else if(img.type == PGM)
+        magic_number = pgm_no[ascii];
+    fprintf(fin, "%c%c\n", 'P', magic_number);
     fprintf(fin, "%d %d\n", img.width, img.height);
     fprintf(fin, "%d\n", img.max_value);
 
-    if(ascii) {
-        for(int i = 0; i < img.height; i++) {
-            for(int j = 0; j < img.width; j++) {
-                fprintf(fin, "%d %d %d ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
+    if (ascii) {
+        for (int i = 0; i < img.height; i++) {
+            for (int j = 0; j < img.width; j++) {
+                if (img.type == PPM)
+                    fprintf(fin, "%d %d %d ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
+                else
+                    fprintf(fin, "%d ", img.picture.pixels[i][j].red);
+                    //printf("%d ", img.picture.pixels[i][j].red);
             }
             fprintf(fin, "\n");
+            //printf("\n");
+        }
+    }
+    else {
+        fclose(fin);
+        fin = fopen(file_name, "ab");
+        if (!fin) {
+            printf("Error opening file\n");
+            return;
+        }
+        for (int i = 0; i < img.height; i++) {
+            for (int j = 0; j < img.width; j++) {
+                if (img.type == PPM) {
+                    fwrite(&(img.picture.pixels[i][j].red), sizeof(char), 1, fin);
+                    fwrite(&(img.picture.pixels[i][j].green), sizeof(char), 1, fin);
+                    fwrite(&(img.picture.pixels[i][j].blue), sizeof(char), 1, fin);
+                }
+                else
+                    fwrite(&(img.picture.pixels[i][j].red), sizeof(char), 1, fin);
+            }
+            //fwrite("\n", sizeof(char), 1, fin);
         }
     }
 
@@ -867,7 +933,12 @@ int main(void)
             apply_command(&img, args[1]);
         }
         else if (strcmp(args[0], SAVE) == 0) {
-            save_command(img, args[1], 1);
+            char *is_ascii;
+            if(command_length == 3)
+                is_ascii = args[2];
+            else
+                is_ascii = " ";
+            save_command(img, args[1], is_ascii);
         }
         else if (strcmp(command, "PRINT") == 0) {
             print_image(img);
