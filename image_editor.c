@@ -46,6 +46,10 @@ int is_select_command(char *command)
 int is_select_all_command(char *command, char *arg)
 {
 	if (is_select_command(command)) {
+		// printf("AAAAAA%d\n", strlen(arg));
+		if (arg[3] == ' ')
+			arg[3] = '\0';
+		//printf("AAAAAAAAAAAAAAA%d\n", strlen(arg));
 		if (strcmp(arg, SELECT_ALL) == 0)
 			return 1;
 	}
@@ -77,7 +81,7 @@ void print_image(netpbm_format img)
 
 int main(void)
 {
-	char *command = (char *)malloc((MAX_WORD + 1) * sizeof(char));
+	char *command = (char *)calloc((MAX_WORD + 1), sizeof(char));
 	if (!command) {
 		printf("Error!\n");
 		return -1;
@@ -92,7 +96,10 @@ int main(void)
 		if (command_length > 0)
 			free_char_2D_array(args, command_length);
 		args = read_command(command, &command_length);
-		if (strcmp(command, EXIT) == 0) {
+		if (strcmp(args[0], EXIT) == 0) {
+			if (img.file_in == NULL) {
+				printf("No image loaded\n");
+			}
 			break;
 		} else if (is_load_command(args[0])) {
 			if (args[1])
@@ -100,11 +107,11 @@ int main(void)
 			else
 				printf("Please enter a file name!\n");
 		} else if (is_select_command(args[0])) {
-			if (command_length == 2 && is_select_all_command(args[0], args[1]))
-				printf("SELECT ALL!\n");
+			if (command_length >= 2 && is_select_all_command(args[0], args[1]))
+				select_all_command(&img);
 			else
-				if (command_length != 5)
-					printf("Invalid number of coordinates!\n");
+				if (command_length < 5)
+					printf("Invalid command\n");
 				else
 					select_command(args, &img);
 		} else if (is_rotate_command(args, command_length)) {
@@ -112,7 +119,12 @@ int main(void)
 		} else if (strcmp(command, CROP) == 0) {
 			crop_command(&img);
 		} else if (strcmp(args[0], APPLY) == 0) {
-			apply_command(&img, args[1]);
+			if (!img.file_in) {
+				printf("No image loaded\n");
+			} else if (command_length != 2) {
+				printf("Invalid command\n");
+			} else
+				apply_command(&img, args[1]);
 		} else if (strcmp(args[0], SAVE) == 0) {
 			char *is_ascii;
 			if (command_length == 3)
@@ -123,7 +135,8 @@ int main(void)
 		} else if (strcmp(command, "PRINT") == 0) {
 			print_image(img);
 		} else {
-			printf("Unknow command!\n");
+			printf("Invalid command\n");
+
 		}
 	}
 

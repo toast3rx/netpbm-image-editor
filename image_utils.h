@@ -11,7 +11,7 @@
  * @param end_row ending position vertically
  * @param end_col ending position horizontally
  */
-void transpose_square_matrix(image img, int start_row, int end_row, int end_col);
+void transpose_square_matrix(image img, int start_row, int end_row, int startol, int end_col);
 
 /**
  * @brief Transpose NxM image, 2D array of pixels
@@ -106,4 +106,12 @@ void rotate_selection_counter_clockwise(netpbm_format* image, int start_row, int
  * @param fraction number to divide each element in kernel
  */
 void apply_filter(netpbm_format* img, double kernel[3][3], double fraction);
+
+/**
+ * @brief Check if string contains only digits
+ * 
+ * @param str string
+ * @return int - true or false
+ */
+int is_numeric(char *str);
 #endif

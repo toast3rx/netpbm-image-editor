@@ -30,7 +30,7 @@ void select_command(char** args, netpbm_format* image);
  *
  * @param img netpbm image
  */
-void select_all_command(netpbm_format img);
+void select_all_command(netpbm_format *img);
 
 /**
  * @brief Rotate netpbm image based on current selection
