@@ -122,8 +122,8 @@ void load_file(char *file_name, netpbm_format *netpbm_img)
 					fread(&(netpbm_img->picture.pixels[i][j].green), sizeof(char), 1, netpbm_img->file_in);
 					fread(&(netpbm_img->picture.pixels[i][j].blue), sizeof(char), 1, netpbm_img->file_in);
 				}
-			
-			
+
+
 		}
 	} else if (netpbm_img->type == PGM) {
 		if (netpbm_img->magic_number[1] == '2')
@@ -165,11 +165,11 @@ void select_command(char **args, netpbm_format *image)
 		return;
 	}
 
-	if(args[1][0] == '-' || args[2][0] == '-' || args[3][0] == '-' || args[4][0] == '-') {
+	if (args[1][0] == '-' || args[2][0] == '-' || args[3][0] == '-' || args[4][0] == '-') {
 		printf("Invalid set of coordinates\n");
 		return;
 	}
-	if(!(is_numeric(args[1]) && is_numeric(args[2]) && is_numeric(args[3]) && is_numeric(args[4]))) {
+	if (!(is_numeric(args[1]) && is_numeric(args[2]) && is_numeric(args[3]) && is_numeric(args[4]))) {
 		printf("Invalid command\n");
 		return;
 	}
@@ -178,9 +178,14 @@ void select_command(char **args, netpbm_format *image)
 	int x2 = string_to_int(args[3]);
 	int y2 = string_to_int(args[4]);
 
+	if(x1 > x2)
+		swap(&x1, &x2);
+	if(y1 > y2)
+		swap(&y1, &y2);
+
 	if (x1 == x2 || y1 == y2) {
 		printf("Invalid set of coordinates\n");
-		return; 
+		return;
 	}
 
 	if (x1 < 0 || x1 > image->width || x2 < 0 || x2 > image->width ||

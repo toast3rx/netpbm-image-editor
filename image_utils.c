@@ -6,7 +6,7 @@
 #include "utils.h"
 
 void transpose_square_matrix(image img, int start_row, int end_row, int start_col, int end_col)
-{   
+{
     // printf("MAX col %d \n", end_col);
     // for (int i = start_row; i < end_row; ++i) {
     //     for (int j = i; j < end_col; ++j) {
@@ -24,31 +24,31 @@ void transpose_square_matrix(image img, int start_row, int end_row, int start_co
     //         img.pixels[j][i].blue = blue_tmp;
     //     }
     // }
-    pixel **temp_img = (pixel **) calloc((end_row - start_row), sizeof(pixel *));
-    for(int i = 0 ; i < end_row - start_row; i++) 
-        temp_img[i] = (pixel *) calloc((end_col - start_col), sizeof(pixel));
+    pixel **temp_img = (pixel **)calloc((end_row - start_row), sizeof(pixel *));
+    for (int i = 0; i < end_row - start_row; i++)
+        temp_img[i] = (pixel *)calloc((end_col - start_col), sizeof(pixel));
 
-    for(int  i = 0; i < end_row - start_row; i++)
-        for(int j = 0; j < end_col -start_col; j++) {
+    for (int i = 0; i < end_row - start_row; i++)
+        for (int j = 0; j < end_col - start_col; j++) {
             temp_img[i][j].red = img.pixels[i + start_row][j + start_col].red;
             temp_img[i][j].green = img.pixels[i + start_row][j + start_col].green;
             temp_img[i][j].blue = img.pixels[i + start_row][j + start_col].blue;
         }
-    
-    for(int i = 0 ; i < end_row - start_row; i++)
-        for(int j = 0; j < end_col - start_col; j++) {
+
+    for (int i = 0; i < end_row - start_row; i++)
+        for (int j = 0; j < end_col - start_col; j++) {
             img.pixels[i + start_row][j + start_col].red = temp_img[j][i].red;
             img.pixels[i + start_row][j + start_col].green = temp_img[j][i].green;
             img.pixels[i + start_row][j + start_col].blue = temp_img[j][i].blue;
         }
 
-    for(int  i = 0; i < end_row - start_row; i ++)
+    for (int i = 0; i < end_row - start_row; i++)
         free(temp_img[i]);
     free(temp_img);
 
 }
 
-void transpose_image(image* img, int* height, int* width)
+void transpose_image(image *img, int *height, int *width)
 {
 
     if (*height != *width) {
@@ -57,16 +57,16 @@ void transpose_image(image* img, int* height, int* width)
         //img.pixels = (pixel **)realloc(img.pixels, max * sizeof(pixel *));
         if (*width > *height) {
 
-            (*img).pixels = (pixel**)realloc((*img).pixels, *width * sizeof(pixel*));
+            (*img).pixels = (pixel **)realloc((*img).pixels, *width * sizeof(pixel *));
             for (int i = *height; i < *width; i++) {
-                (*img).pixels[i] = (pixel*)calloc(max, sizeof(pixel));
+                (*img).pixels[i] = (pixel *)calloc(max, sizeof(pixel));
             }
 
             transpose_square_matrix((*img), 0, max, 0, max);
 
             for (int i = 0; i < max; i++)
                 (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
-        }         else {
+        } else {
             for (int i = 0; i < *height; i++)
                 (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
             transpose_square_matrix((*img), 0, max, 0, max);
@@ -79,7 +79,7 @@ void transpose_image(image* img, int* height, int* width)
 
         swap(height, width);
         // printf("W%d H%d\n", *width, *height);
-    }     else
+    } else
         transpose_square_matrix((*img), 0, *height, 0, *width);
 }
 
@@ -146,7 +146,7 @@ void free_all(netpbm_format img)
     }
 }
 
-void rotate_image_clockwise(netpbm_format* image, int angle)
+void rotate_image_clockwise(netpbm_format *image, int angle)
 {
     for (int k = 0; k < (angle / 90); k++) {
         //transpose
@@ -158,7 +158,7 @@ void rotate_image_clockwise(netpbm_format* image, int angle)
     }
 }
 
-void rotate_image_counter_clockwise(netpbm_format* image, int angle)
+void rotate_image_counter_clockwise(netpbm_format *image, int angle)
 {
     for (int k = 0; k < (angle / 90); k++) {
         //transpose
@@ -170,7 +170,7 @@ void rotate_image_counter_clockwise(netpbm_format* image, int angle)
     }
 }
 
-void rotate_selection_clockwise(netpbm_format* image, int start_row, int start_col, int end_row, int end_col, int angle)
+void rotate_selection_clockwise(netpbm_format *image, int start_row, int start_col, int end_row, int end_col, int angle)
 {
     for (int k = 0; k < (angle / 90); k++) {
         transpose_square_matrix(image->picture, start_row, end_row, start_col, end_col);
@@ -178,7 +178,7 @@ void rotate_selection_clockwise(netpbm_format* image, int start_row, int start_c
     }
 }
 
-void rotate_selection_counter_clockwise(netpbm_format* image, int start_row, int start_col, int end_row, int end_col, int angle)
+void rotate_selection_counter_clockwise(netpbm_format *image, int start_row, int start_col, int end_row, int end_col, int angle)
 {
     for (int k = 0; k < (angle / 90); k++) {
         transpose_square_matrix(image->picture, start_row, end_row, start_col, end_col);
@@ -186,7 +186,7 @@ void rotate_selection_counter_clockwise(netpbm_format* image, int start_row, int
     }
 }
 
-void apply_filter(netpbm_format* img, double kernel[3][3], double fraction)
+void apply_filter(netpbm_format *img, double kernel[3][3], double fraction)
 {
     int delimiter = 3;
 
@@ -196,9 +196,9 @@ void apply_filter(netpbm_format* img, double kernel[3][3], double fraction)
     int end_col = get_max(img->curr_selection.p1.x, img->curr_selection.p2.x);
     // copy image
     image temp;
-    temp.pixels = (pixel**)malloc(img->height * sizeof(pixel*));
+    temp.pixels = (pixel **)malloc(img->height * sizeof(pixel *));
     for (int i = 0; i < img->height; i++)
-        temp.pixels[i] = (pixel*)malloc(img->width * sizeof(pixel));
+        temp.pixels[i] = (pixel *)malloc(img->width * sizeof(pixel));
 
     for (int i = 0; i < img->height; i++)
         for (int j = 0; j < img->width; j++) {
@@ -240,9 +240,10 @@ void apply_filter(netpbm_format* img, double kernel[3][3], double fraction)
     free_image(temp, img->height);
 }
 
-int is_numeric(char *str) {
-    for(int  i = 0; i < (int) strlen(str); i++)
-        if(!(str[i] <= '9' && str [i] >= '0'))
+int is_numeric(char *str)
+{
+    for (int i = 0; i < (int)strlen(str); i++)
+        if (!(str[i] <= '9' && str[i] >= '0'))
             return 0;
     return 1;
 }

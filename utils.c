@@ -4,7 +4,7 @@
 #include "structs.h"
 #include "utils.h"
 
-void split_string(char* str, char** words_array)
+void split_string(char *str, char **words_array)
 {
     int j = 0;
     int count = 0;
@@ -14,15 +14,14 @@ void split_string(char* str, char** words_array)
             words_array[count][j] = '\0';
             count++; //for next word
             j = 0;   //for next word, init index to 0
-        }
-        else {
+        }         else {
             words_array[count][j] = str[i];
             j++;
         }
     }
 }
 
-void check_comments(FILE* in)
+void check_comments(FILE *in)
 {
     char c = getc(in);
     while (c == '#') {
@@ -34,7 +33,7 @@ void check_comments(FILE* in)
     ungetc(c, in);
 }
 
-void free_char_2D_array(char** array, int length)
+void free_char_2D_array(char **array, int length)
 {
     for (int i = 0; i < length; i++)
         free(array[i]);
@@ -42,7 +41,7 @@ void free_char_2D_array(char** array, int length)
     free(array);
 }
 
-int string_to_int(char* str)
+int string_to_int(char *str)
 {
     int res = 0;
     int i = 0;
@@ -63,14 +62,14 @@ int get_min(int x, int y)
     return x < y ? x : y;
 }
 
-void swap(int* x, int* y)
+void swap(int *x, int *y)
 {
     int temp = *x;
     *x = *y;
     *y = temp;
 }
 
-void clamp(double* x, int min, int max)
+void clamp(double *x, int min, int max)
 {
     if (*x > max)
         *x = max;
