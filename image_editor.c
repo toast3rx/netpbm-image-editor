@@ -7,77 +7,7 @@
 #include "utils.h"
 #include "image_utils.h"
 #include "commands.h"
-
-/**
- * @brief
- * Check if inserted command is the LOAD command
- * @param command input from stdin
- * @return 1 for true, 0 for false
- */
-int is_load_command(char *command)
-{
-	if (strcmp(command, LOAD) == 0)
-		return 1;
-	else
-		return 0;
-}
-
-/**
- * @brief Check for select command
- *
- * @param command given by the user
- * @return int true or false
- */
-int is_select_command(char *command)
-{
-	if (strcmp(command, SELECT) == 0)
-		return 1;
-	else
-		return 0;
-}
-
-/**
- * @brief Check for select all command
- *
- * @param command given by the user
- * @param arg second argument
- * @return int true or false
- */
-int is_select_all_command(char *command, char *arg)
-{
-	if (is_select_command(command)) {
-		// printf("AAAAAA%d\n", strlen(arg));
-		if (arg[3] == ' ')
-			arg[3] = '\0';
-		//printf("AAAAAAAAAAAAAAA%d\n", strlen(arg));
-		if (strcmp(arg, SELECT_ALL) == 0)
-			return 1;
-	}
-
-	return 0;
-}
-
-int is_rotate_command(char **args, int length)
-{
-	if (strcmp(args[0], ROTATE) != 0)
-		return 0;
-	if (length == 2 && args[1])
-		return 1;
-
-	printf("Unsupported rotation angle!\n");
-	return 0;
-}
-
-void print_image(netpbm_format img)
-{
-	printf("%s\n%d %d\n%d\n", img.magic_number, img.width, img.height, img.max_value);
-	for (int i = 0; i < img.height; i++) {
-		for (int j = 0; j < img.width; j++)
-			printf("%d %d %d       ", img.picture.pixels[i][j].red, img.picture.pixels[i][j].green, img.picture.pixels[i][j].blue);
-
-		printf("\n");
-	}
-}
+#include "command_check.h"
 
 int main(void)
 {
@@ -96,10 +26,7 @@ int main(void)
 		if (command_length > 0)
 			free_char_2D_array(args, command_length);
 		args = read_command(command, &command_length);
-		if (strcmp(args[0], EXIT) == 0) {
-			if (img.file_in == NULL) {
-				printf("No image loaded\n");
-			}
+		if (is_exit_command(args[0], img)) {
 			break;
 		} else if (is_load_command(args[0])) {
 			if (args[1])
@@ -111,38 +38,34 @@ int main(void)
 				select_all_command(&img);
 			else
 				if (command_length < 5)
-					printf("Invalid command\n");
+					invalid_command_exception();
 				else
 					select_command(args, &img);
 		} else if (is_rotate_command(args, command_length)) {
 			rotate_command(&img, args[1]);
-		} else if (strcmp(command, CROP) == 0) {
+		} else if (is_crop_command(command)) {
 			crop_command(&img);
-		} else if (strcmp(args[0], APPLY) == 0) {
-			if (!img.file_in) {
-				printf("No image loaded\n");
-			} else if (command_length != 2) {
-				printf("Invalid command\n");
-			} else
+		} else if (is_apply_filter_command(args[0])) {
+			if (!img.file_in)
+				no_file_load_exception();
+			else if (command_length != 2)
+				invalid_command_exception();
+			else
 				apply_command(&img, args[1]);
-		} else if (strcmp(args[0], SAVE) == 0) {
+		} else if (is_save_command(args[0])) {
 			char *is_ascii;
 			if (command_length == 3)
 				is_ascii = args[2];
 			else
 				is_ascii = " ";
 			save_command(img, args[1], is_ascii);
-		} else if (strcmp(command, "PRINT") == 0) {
-			print_image(img);
 		} else {
-			printf("Invalid command\n");
-
+			invalid_command_exception();
 		}
 	}
 
 	free(command);
 	free_char_2D_array(args, command_length);
-
 	free_all(img);
 	return 0;
 }

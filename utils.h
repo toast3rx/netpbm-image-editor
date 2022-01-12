@@ -64,10 +64,22 @@ void swap(int *x, int *y);
  * @brief Restrict a number between a min and a max
  *
  * @param x number to be restricted
- * @param min min value
- * @param max max value
+ * @param min value
+ * @param max value
  */
 void clamp(double *x, int min, int max);
+
+/**
+ * @brief Print error message when there is no file loaded
+ *
+ */
+void no_file_load_exception(void);
+
+/**
+ * @brief Print error message when there is an invalid command
+ *
+ */
+void invalid_command_exception(void);
 
 #endif
 

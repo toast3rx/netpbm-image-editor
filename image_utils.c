@@ -5,245 +5,275 @@
 #include "image_utils.h"
 #include "utils.h"
 
-void transpose_square_matrix(image img, int start_row, int end_row, int start_col, int end_col)
+void transpose_square_matrix(image img,
+							 int start_row,
+							 int end_row,
+							 int start_col,
+							 int end_col)
 {
-    // printf("MAX col %d \n", end_col);
-    // for (int i = start_row; i < end_row; ++i) {
-    //     for (int j = i; j < end_col; ++j) {
-    //         int red_tmp = img.pixels[i][j].red;
-    //         int green_tmp = img.pixels[i][j].green;
-    //         int blue_tmp = img.pixels[i][j].blue;
+	pixel **temp_img = (pixel **)calloc((end_row - start_row),
+										 sizeof(pixel *));
+	for (int i = 0; i < end_row - start_row; i++)
+		temp_img[i] = (pixel *)calloc((end_col - start_col), sizeof(pixel));
 
-    //         printf("Coords row: %d col: %d\n", i, j);
-    //         img.pixels[i][j].red = img.pixels[j][i].red;
-    //         img.pixels[i][j].green = img.pixels[j][i].green;
-    //         img.pixels[i][j].blue = img.pixels[j][i].blue;
+	for (int i = 0; i < end_row - start_row; i++)
+		for (int j = 0; j < end_col - start_col; j++) {
+			temp_img[i][j].red =
+				img.pixels[i + start_row][j + start_col].red;
+			temp_img[i][j].green =
+				img.pixels[i + start_row][j + start_col].green;
+			temp_img[i][j].blue =
+				img.pixels[i + start_row][j + start_col].blue;
+		}
 
-    //         img.pixels[j][i].red = red_tmp;
-    //         img.pixels[j][i].green = green_tmp;
-    //         img.pixels[j][i].blue = blue_tmp;
-    //     }
-    // }
-    pixel **temp_img = (pixel **)calloc((end_row - start_row), sizeof(pixel *));
-    for (int i = 0; i < end_row - start_row; i++)
-        temp_img[i] = (pixel *)calloc((end_col - start_col), sizeof(pixel));
+	for (int i = 0; i < end_row - start_row; i++)
+		for (int j = 0; j < end_col - start_col; j++) {
+			img.pixels[i + start_row][j + start_col].red =
+				temp_img[j][i].red;
+			img.pixels[i + start_row][j + start_col].green =
+				temp_img[j][i].green;
+			img.pixels[i + start_row][j + start_col].blue =
+				temp_img[j][i].blue;
+		}
 
-    for (int i = 0; i < end_row - start_row; i++)
-        for (int j = 0; j < end_col - start_col; j++) {
-            temp_img[i][j].red = img.pixels[i + start_row][j + start_col].red;
-            temp_img[i][j].green = img.pixels[i + start_row][j + start_col].green;
-            temp_img[i][j].blue = img.pixels[i + start_row][j + start_col].blue;
-        }
-
-    for (int i = 0; i < end_row - start_row; i++)
-        for (int j = 0; j < end_col - start_col; j++) {
-            img.pixels[i + start_row][j + start_col].red = temp_img[j][i].red;
-            img.pixels[i + start_row][j + start_col].green = temp_img[j][i].green;
-            img.pixels[i + start_row][j + start_col].blue = temp_img[j][i].blue;
-        }
-
-    for (int i = 0; i < end_row - start_row; i++)
-        free(temp_img[i]);
-    free(temp_img);
-
+	for (int i = 0; i < end_row - start_row; i++)
+		free(temp_img[i]);
+	free(temp_img);
 }
 
 void transpose_image(image *img, int *height, int *width)
 {
+	if (*height != *width) {
+		int max = get_max(*height, *width);
+		if (*width > *height) {
+			(*img).pixels = (pixel **)realloc((*img).pixels,
+							 *width * sizeof(pixel *));
+			for (int i = *height; i < *width; i++)
+				(*img).pixels[i] = (pixel *)calloc(max, sizeof(pixel));
 
-    if (*height != *width) {
+			transpose_square_matrix((*img), 0, max, 0, max);
 
-        int max = get_max(*height, *width);
-        //img.pixels = (pixel **)realloc(img.pixels, max * sizeof(pixel *));
-        if (*width > *height) {
+			for (int i = 0; i < max; i++)
+				(*img).pixels[i] = realloc((*img).pixels[i],
+											*height * sizeof(pixel));
+		} else {
+			for (int i = 0; i < *height; i++)
+				(*img).pixels[i] = realloc((*img).pixels[i],
+											*height * sizeof(pixel));
 
-            (*img).pixels = (pixel **)realloc((*img).pixels, *width * sizeof(pixel *));
-            for (int i = *height; i < *width; i++) {
-                (*img).pixels[i] = (pixel *)calloc(max, sizeof(pixel));
-            }
+			transpose_square_matrix((*img), 0, max, 0, max);
 
-            transpose_square_matrix((*img), 0, max, 0, max);
+			for (int i = *width; i < *height; i++)
+				free((*img).pixels[i]);
 
-            for (int i = 0; i < max; i++)
-                (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
-        } else {
-            for (int i = 0; i < *height; i++)
-                (*img).pixels[i] = realloc((*img).pixels[i], *height * sizeof(pixel));
-            transpose_square_matrix((*img), 0, max, 0, max);
+			(*img).pixels = realloc((*img).pixels, *width * sizeof(pixel));
+		}
 
-            for (int i = *width; i < *height; i++)
-                free((*img).pixels[i]);
-
-            (*img).pixels = realloc((*img).pixels, *width * sizeof(pixel));
-        }
-
-        swap(height, width);
-        // printf("W%d H%d\n", *width, *height);
-    } else
-        transpose_square_matrix((*img), 0, *height, 0, *width);
+		swap(height, width);
+	} else {
+		transpose_square_matrix((*img), 0, *height, 0, *width);
+	}
 }
 
-void reverse_rows(image img, int start_row, int end_row, int start_col, int end_col)
+void reverse_rows(image img,
+				  int start_row,
+				  int end_row,
+				  int start_col,
+				  int end_col)
 {
-    for (int i = start_row; i < end_row; i++) {
-        int low = start_col;
-        int high = end_col - 1;
-        while (low < high) {
-            int red_temp = img.pixels[i][low].red;
-            int green_temp = img.pixels[i][low].green;
-            int blue_temp = img.pixels[i][low].blue;
+	for (int i = start_row; i < end_row; i++) {
+		int low = start_col;
+		int high = end_col - 1;
+		while (low < high) {
+			int red_temp = img.pixels[i][low].red;
+			int green_temp = img.pixels[i][low].green;
+			int blue_temp = img.pixels[i][low].blue;
 
-            img.pixels[i][low].red = img.pixels[i][high].red;
-            img.pixels[i][low].green = img.pixels[i][high].green;
-            img.pixels[i][low].blue = img.pixels[i][high].blue;
+			img.pixels[i][low].red = img.pixels[i][high].red;
+			img.pixels[i][low].green = img.pixels[i][high].green;
+			img.pixels[i][low].blue = img.pixels[i][high].blue;
 
-            img.pixels[i][high].red = red_temp;
-            img.pixels[i][high].green = green_temp;
-            img.pixels[i][high].blue = blue_temp;
+			img.pixels[i][high].red = red_temp;
+			img.pixels[i][high].green = green_temp;
+			img.pixels[i][high].blue = blue_temp;
 
-            low++;
-            high--;
-        }
-    }
+			low++;
+			high--;
+		}
+	}
 }
 
-void reverse_cols(image img, int start_row, int end_row, int start_col, int end_col)
+void reverse_cols(image img,
+				  int start_row,
+				  int end_row,
+				  int start_col,
+				  int end_col)
 {
-    for (int i = start_col; i < end_col; i++) {
-        int low = start_row;
-        int high = end_row - 1;
-        while (low < high) {
-            int red_temp = img.pixels[low][i].red;
-            int green_temp = img.pixels[low][i].green;
-            int blue_temp = img.pixels[low][i].blue;
+	for (int i = start_col; i < end_col; i++) {
+		int low = start_row;
+		int high = end_row - 1;
+		while (low < high) {
+			int red_temp = img.pixels[low][i].red;
+			int green_temp = img.pixels[low][i].green;
+			int blue_temp = img.pixels[low][i].blue;
 
-            img.pixels[low][i].red = img.pixels[high][i].red;
-            img.pixels[low][i].green = img.pixels[high][i].green;
-            img.pixels[low][i].blue = img.pixels[high][i].blue;
+			img.pixels[low][i].red = img.pixels[high][i].red;
+			img.pixels[low][i].green = img.pixels[high][i].green;
+			img.pixels[low][i].blue = img.pixels[high][i].blue;
 
-            img.pixels[high][i].red = red_temp;
-            img.pixels[high][i].green = green_temp;
-            img.pixels[high][i].blue = blue_temp;
+			img.pixels[high][i].red = red_temp;
+			img.pixels[high][i].green = green_temp;
+			img.pixels[high][i].blue = blue_temp;
 
-            low++;
-            high--;
-        }
-    }
+			low++;
+			high--;
+		}
+	}
 }
 
 void free_image(image img, int height)
 {
-    for (int i = 0; i < height; i++)
-        free(img.pixels[i]);
-    free(img.pixels);
+	for (int i = 0; i < height; i++)
+		free(img.pixels[i]);
+	free(img.pixels);
 }
 
 void free_all(netpbm_format img)
 {
-    if (img.file_in) {
-        free_image(img.picture, img.height);
-        fclose(img.file_in);
-    }
+	if (img.file_in) {
+		free_image(img.picture, img.height);
+		fclose(img.file_in);
+	}
 }
 
 void rotate_image_clockwise(netpbm_format *image, int angle)
 {
-    for (int k = 0; k < (angle / 90); k++) {
-        //transpose
-        transpose_image((&(*image).picture), &(*image).height, &(*image).width);
-        (*image).curr_selection.p2.x = (*image).width;
-        (*image).curr_selection.p2.y = (*image).height;
-        // reverse
-        reverse_rows((*image).picture, 0, (*image).height, 0, (*image).width);
-    }
+	for (int k = 0; k < (angle / 90); k++) {
+		//transpose
+		transpose_image((&image->picture), &image->height, &image->width);
+		(*image).curr_selection.p2.x = image->width;
+		(*image).curr_selection.p2.y = image->height;
+		// reverse
+		reverse_rows((*image).picture, 0, (*image).height, 0, (*image).width);
+	}
 }
 
 void rotate_image_counter_clockwise(netpbm_format *image, int angle)
 {
-    for (int k = 0; k < (angle / 90); k++) {
-        //transpose
-        transpose_image((&(*image).picture), &(*image).height, &(*image).width);
-        (*image).curr_selection.p2.x = (*image).width;
-        (*image).curr_selection.p2.y = (*image).height;
-        // reverse
-        reverse_cols(image->picture, 0, image->height, 0, image->width);
-    }
+	for (int k = 0; k < (angle / 90); k++) {
+		//transpose
+		transpose_image((&(*image).picture), &(*image).height, &(*image).width);
+		(*image).curr_selection.p2.x = (*image).width;
+		(*image).curr_selection.p2.y = (*image).height;
+		// reverse
+		reverse_cols(image->picture, 0, image->height, 0, image->width);
+	}
 }
 
-void rotate_selection_clockwise(netpbm_format *image, int start_row, int start_col, int end_row, int end_col, int angle)
+void rotate_selection_clockwise(netpbm_format *image,
+								int start_row,
+								int start_col,
+								int end_row,
+								int end_col,
+								int angle)
 {
-    for (int k = 0; k < (angle / 90); k++) {
-        transpose_square_matrix(image->picture, start_row, end_row, start_col, end_col);
-        reverse_rows(image->picture, start_row, end_row, start_col, end_col);
-    }
+	for (int k = 0; k < (angle / 90); k++) {
+		transpose_square_matrix(image->picture,
+								start_row,
+								end_row,
+								start_col,
+								end_col);
+		reverse_rows(image->picture, start_row, end_row, start_col, end_col);
+	}
 }
 
-void rotate_selection_counter_clockwise(netpbm_format *image, int start_row, int start_col, int end_row, int end_col, int angle)
+void rotate_selection_counter_clockwise(netpbm_format *image,
+										int start_row,
+										int start_col,
+										int end_row,
+										int end_col,
+										int angle)
 {
-    for (int k = 0; k < (angle / 90); k++) {
-        transpose_square_matrix(image->picture, start_row, end_row, start_col, end_col);
-        reverse_cols(image->picture, start_row, end_row, start_col, end_col);
-    }
+	for (int k = 0; k < (angle / 90); k++) {
+		transpose_square_matrix(image->picture,
+								start_row,
+								end_row,
+								start_col,
+								end_col);
+		reverse_cols(image->picture, start_row, end_row, start_col, end_col);
+	}
 }
 
 void apply_filter(netpbm_format *img, double kernel[3][3], double fraction)
 {
-    int delimiter = 3;
+	int delimiter = 3;
 
-    int start_row = get_min(img->curr_selection.p1.y, img->curr_selection.p2.y);
-    int end_row = get_max(img->curr_selection.p1.y, img->curr_selection.p2.y);
-    int start_col = get_min(img->curr_selection.p1.x, img->curr_selection.p2.x);
-    int end_col = get_max(img->curr_selection.p1.x, img->curr_selection.p2.x);
-    // copy image
-    image temp;
-    temp.pixels = (pixel **)malloc(img->height * sizeof(pixel *));
-    for (int i = 0; i < img->height; i++)
-        temp.pixels[i] = (pixel *)malloc(img->width * sizeof(pixel));
+	int start_row = get_min(img->curr_selection.p1.y,
+							img->curr_selection.p2.y);
+	int end_row = get_max(img->curr_selection.p1.y,
+						  img->curr_selection.p2.y);
+	int start_col = get_min(img->curr_selection.p1.x,
+							img->curr_selection.p2.x);
+	int end_col = get_max(img->curr_selection.p1.x,
+						  img->curr_selection.p2.x);
+	// copy image
+	image temp;
+	temp.pixels = (pixel **)malloc(img->height * sizeof(pixel *));
+	for (int i = 0; i < img->height; i++)
+		temp.pixels[i] = (pixel *)malloc(img->width * sizeof(pixel));
 
-    for (int i = 0; i < img->height; i++)
-        for (int j = 0; j < img->width; j++) {
-            temp.pixels[i][j].red = img->picture.pixels[i][j].red;
-            temp.pixels[i][j].green = img->picture.pixels[i][j].green;
-            temp.pixels[i][j].blue = img->picture.pixels[i][j].blue;
-        }
+	for (int i = 0; i < img->height; i++)
+		for (int j = 0; j < img->width; j++) {
+			temp.pixels[i][j].red = img->picture.pixels[i][j].red;
+			temp.pixels[i][j].green = img->picture.pixels[i][j].green;
+			temp.pixels[i][j].blue = img->picture.pixels[i][j].blue;
+		}
 
-    for (int i = start_row; i < end_row; i++) {
-        if (i == 0 || i == img->height - 1)
-            continue;
-        for (int j = start_col; j < end_col; j++) {
-            if (j == 0 || j == img->width - 1)
-                continue;
+	for (int i = start_row; i < end_row; i++) {
+		if (i == 0 || i == img->height - 1)
+			continue;
+		for (int j = start_col; j < end_col; j++) {
+			if (j == 0 || j == img->width - 1)
+				continue;
 
-            double new_red = 0;
-            double new_green = 0;
-            double new_blue = 0;
+			double new_red = 0;
+			double new_green = 0;
+			double new_blue = 0;
 
-            for (int kernel_row = 0; kernel_row < delimiter; kernel_row++)
-                for (int kernel_col = 0; kernel_col < delimiter; kernel_col++) {
-                    new_red += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].red) / fraction;
-                    new_green += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].green) / fraction;
-                    new_blue += (kernel[kernel_row][kernel_col] * temp.pixels[i - 1 + kernel_row][j - 1 + kernel_col].blue) / fraction;
-                }
-            // new_red /= fraction;
-            // new_blue /= fraction;
-            // new_red /= fraction;
+			for (int kernel_row = 0; kernel_row < delimiter; kernel_row++)
+				for (int kernel_col = 0; kernel_col < delimiter; kernel_col++) {
+					int temp_row = i - 1 + kernel_row;
+					int temp_col = j - 1 + kernel_col;
+					new_red += (kernel[kernel_row][kernel_col] *
+								temp.pixels[temp_row][temp_col].red) /
+								fraction;
+					new_green += (kernel[kernel_row][kernel_col] *
+								  temp.pixels[temp_row][temp_col].green) /
+								  fraction;
+					new_blue += (kernel[kernel_row][kernel_col] *
+								temp.pixels[temp_row][temp_col].blue) /
+								fraction;
+				}
+			new_red = round(new_red);
+			new_green = round(new_green);
+			new_blue = round(new_blue);
 
-            clamp(&new_red, 0, 255);
-            clamp(&new_blue, 0, 255);
-            clamp(&new_green, 0, 255);
-            img->picture.pixels[i][j].red = ceil(new_red);
-            img->picture.pixels[i][j].green = ceil(new_green);
-            img->picture.pixels[i][j].blue = ceil(new_blue);
-        }
-    }
+			clamp(&new_red, 0, 255);
+			clamp(&new_blue, 0, 255);
+			clamp(&new_green, 0, 255);
+			img->picture.pixels[i][j].red = new_red;
+			img->picture.pixels[i][j].green = new_green;
+			img->picture.pixels[i][j].blue = new_blue;
+		}
+	}
 
-    free_image(temp, img->height);
+	free_image(temp, img->height);
 }
 
 int is_numeric(char *str)
 {
-    for (int i = 0; i < (int)strlen(str); i++)
-        if (!(str[i] <= '9' && str[i] >= '0'))
-            return 0;
-    return 1;
+	for (int i = 0; i < (int)strlen(str); i++)
+		if (!(str[i] <= '9' && str[i] >= '0'))
+			return 0;
+	return 1;
 }
