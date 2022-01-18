@@ -15,6 +15,11 @@ void transpose_square_matrix(image img,
 {
 	pixel **temp_img = (pixel **)calloc((end_row - start_row),
 										 sizeof(pixel *));
+	if (!temp_img) {
+		memory_allocation_exception();
+		return;
+	}
+
 	for (int i = 0; i < end_row - start_row; i++) {
 		temp_img[i] = (pixel *)calloc((end_col - start_col), sizeof(pixel));
 		if (!temp_img[i]) {
@@ -53,10 +58,15 @@ void transpose_image(image *img, int *height, int *width)
 	if (*height != *width) {
 		int max = get_max(*height, *width);
 		if (*width > *height) {
-			(*img).pixels = (pixel **)realloc((*img).pixels,
+			pixel **realloc_tmp = (pixel **)realloc((*img).pixels,
 							 *width * sizeof(pixel *));
+			if (!realloc_tmp) {
+				memory_allocation_exception();
+				return;
+			}
+			img->pixels = realloc_tmp;
 			for (int i = *height; i < *width; i++) {
-				(*img).pixels[i] = (pixel *)calloc(max, sizeof(pixel));
+				img->pixels[i] = (pixel *)calloc(max, sizeof(pixel));
 				if (!(*img).pixels[i]) {
 					memory_allocation_exception();
 					return;
@@ -64,20 +74,37 @@ void transpose_image(image *img, int *height, int *width)
 			}
 			transpose_square_matrix((*img), 0, max, 0, max);
 
-			for (int i = 0; i < max; i++)
-				(*img).pixels[i] = realloc((*img).pixels[i],
+			for (int i = 0; i < max; i++) {
+				pixel *tmp = realloc((*img).pixels[i],
 											*height * sizeof(pixel));
+				if (!tmp) {
+					memory_allocation_exception();
+					return;
+				}
+				img->pixels[i] = tmp;
+			}
 		} else {
-			for (int i = 0; i < *height; i++)
-				(*img).pixels[i] = realloc((*img).pixels[i],
+			for (int i = 0; i < *height; i++) {
+				pixel *tmp = realloc((*img).pixels[i],
 											*height * sizeof(pixel));
+				if (!tmp) {
+					memory_allocation_exception();
+					return;
+				}
+				img->pixels[i] = tmp;
+			}
 
 			transpose_square_matrix((*img), 0, max, 0, max);
 
 			for (int i = *width; i < *height; i++)
 				free((*img).pixels[i]);
 
-			(*img).pixels = realloc((*img).pixels, *width * sizeof(pixel));
+			pixel **r_tmp = realloc((*img).pixels, *width * sizeof(pixel));
+			if (!r_tmp) {
+				memory_allocation_exception();
+				return;
+			}
+			img->pixels = r_tmp;
 		}
 
 		swap(height, width);
