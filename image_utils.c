@@ -304,9 +304,9 @@ void apply_filter(netpbm_format *img, double kernel[3][3])
 								temp.pixels[temp_row][temp_col].blue);
 				}
 
-			new_red /= 10000;
-			new_green /= 10000;
-			new_blue /= 10000;
+			new_red /= DECIMAL_PLACES;
+			new_green /= DECIMAL_PLACES;
+			new_blue /= DECIMAL_PLACES;
 			clamp(&new_red, 0, 255 * PRECISION);
 			clamp(&new_green, 0, 255 * PRECISION);
 			clamp(&new_blue, 0, 255 * PRECISION);
