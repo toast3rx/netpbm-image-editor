@@ -6,7 +6,7 @@ pack:
 	zip -r  311CA_LateaMihaiAlexandru_Tema3.zip \
 		image_editor.c utils.c utils.h image_utils.c image_utils.h command_check.c \
 		command_check.h commands.c commands.h constants.h structs.h exceptions.h exceptions.c \
-	       	image_example Makefile README
+	       	image_example Makefile README README.md
 run:
 	./image_editor
 clean:
