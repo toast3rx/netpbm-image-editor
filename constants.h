@@ -1,0 +1,22 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+#define MAX_WORD 100
+#define MAX_FILENAME 100
+#define PRECISION 1000
+#define DECIMAL_PLACES 10000
+#define LOAD "LOAD"
+#define SELECT "SELECT"
+#define SELECT_ALL "ALL"
+#define ROTATE "ROTATE"
+#define CROP "CROP"
+#define APPLY "APPLY"
+#define SAVE "SAVE"
+#define EXIT "EXIT"
+
+#define EDGE_FILTER "EDGE"
+#define SHARPEN_FILTER "SHARPEN"
+#define BLUR_FILTER "BLUR"
+#define GAUSSIAN_BLUR_FILTER "GAUSSIAN_BLUR"
+
+#endif
